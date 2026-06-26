@@ -24,10 +24,24 @@ export const config = {
   openai: {
     apiKey: required("OPENAI_API_KEY"),
     model: optional("OPENAI_MODEL", "gpt-4o-mini"),
+    embeddingModel: optional("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
     systemPrompt: optional(
       "AI_SYSTEM_PROMPT",
       "You are a helpful assistant. Answer in the customer's language, be concise and friendly."
     ),
+  },
+
+  // Conversation memory (in-process). Number of *turns* kept per contact;
+  // each turn is one user message + one assistant reply.
+  memory: {
+    maxTurns: Number(optional("MEMORY_MAX_TURNS", "10")),
+  },
+
+  // RAG knowledge base. Plain .txt/.md files dropped in this folder are
+  // embedded on startup and used to ground the AI's answers.
+  knowledge: {
+    dir: optional("KNOWLEDGE_DIR", "knowledge"),
+    topK: Number(optional("KNOWLEDGE_TOP_K", "4")),
   },
 
   whatsapp: {

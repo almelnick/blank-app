@@ -38,11 +38,15 @@ async function findPersonByPhone(phone) {
  * Create a new person record.
  * @returns {Promise<object>} The created person.
  */
-async function createPerson({ phone, name }) {
-  const { data } = await api.post("/people", {
-    name: { firstName: name || "WhatsApp", lastName: "Contact" },
+async function createPerson({ phone, name, email }) {
+  const [firstName, ...rest] = (name || "WhatsApp Contact").split(" ");
+  const body = {
+    name: { firstName, lastName: rest.join(" ") || "" },
     phones: { primaryPhoneNumber: phone },
-  });
+  };
+  if (email) body.emails = { primaryEmail: email };
+
+  const { data } = await api.post("/people", body);
   return data?.data?.createPerson || data?.data;
 }
 
@@ -53,13 +57,13 @@ async function createPerson({ phone, name }) {
  * @returns {Promise<object|null>} The person record, or null if Twenty is
  *          disabled or the call failed.
  */
-export async function upsertContact({ phone, name }) {
+export async function upsertContact({ phone, name, email }) {
   if (!api) return null;
 
   try {
     const existing = await findPersonByPhone(phone);
     if (existing) return existing;
-    return await createPerson({ phone, name });
+    return await createPerson({ phone, name, email });
   } catch (err) {
     console.warn("Twenty upsertContact failed:", err.response?.data || err.message);
     return null;

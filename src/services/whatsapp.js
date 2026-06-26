@@ -32,6 +32,44 @@ export async function sendTextMessage(to, text) {
 }
 
 /**
+ * Send an interactive message with up to 3 reply buttons.
+ * Useful for structured, deterministic flows (e.g. a menu) without letting
+ * the AI improvise. This is the lightweight cousin of WhatsApp Flows.
+ *
+ * @param {string} to - Recipient phone number.
+ * @param {string} bodyText - Message shown above the buttons.
+ * @param {Array<{id: string, title: string}>} buttons - Max 3, title <= 20 chars.
+ */
+export async function sendButtons(to, bodyText, buttons) {
+  const { data } = await axios.post(
+    `${baseUrl}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: bodyText },
+        action: {
+          buttons: buttons.slice(0, 3).map((b) => ({
+            type: "reply",
+            reply: { id: b.id, title: b.title.slice(0, 20) },
+          })),
+        },
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${config.whatsapp.token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  return data;
+}
+
+/**
  * Mark an incoming message as read (the blue ticks) so the contact sees
  * that the bot received their message while the AI reply is generated.
  *

@@ -19,6 +19,43 @@ WhatsApp  ──▶  /webhook (Express)  ──▶  OpenAI  ──▶  respuesta
                       └──▶  Twenty CRM (contacto + nota)
 ```
 
+## 🧠 El cerebro
+
+El agente combina tres capacidades (todas en `src/services/`):
+
+1. **Memoria** (`memory.js`) — recuerda los últimos turnos de cada contacto, así
+   la conversación tiene continuidad. Es en memoria del proceso (se reinicia al
+   reiniciar el server); para producción, cambiá el `Map` por Redis o una base.
+   Escribí `/reset` en el chat para borrar el historial de un contacto.
+2. **Conocimiento / RAG** (`knowledge.js`) — todo archivo `.md`/`.txt` en la
+   carpeta `knowledge/` se trocea, se convierte en *embeddings* y se usa para
+   responder con TU información. Sin base de datos externa: funciona out-of-the-box.
+3. **Acciones / tools** (`tools.js`) — el modelo decide **cuándo** guardar datos.
+   Tools incluidas: `save_contact`, `log_note`, `schedule_appointment`. El LLM
+   las llama solo (function calling) y tu código ejecuta la acción real en Twenty.
+
+### Nutrir el conocimiento
+
+Poné tus archivos en `knowledge/` (mirá `knowledge/ejemplo-empresa.md`):
+
+```
+knowledge/
+  productos.md
+  preguntas-frecuentes.md
+  politicas.txt
+```
+
+Se indexan automáticamente al primer mensaje. Para mucha información o fuentes
+que cambian seguido, cambiá el índice en memoria por un vector DB (Supabase
+pgvector, Qdrant, Pinecone): solo se tocan `buildIndex`/`retrieveContext`.
+
+### Agregar nuevas acciones
+
+En `src/services/tools.js`: añadí una definición a `toolDefinitions` y su
+*handler* en `executeTool`. Acá es donde se enchufan integraciones como
+[Composio](https://composio.dev) (Gmail, Calendar, CRMs, etc.) exponiendo sus
+acciones como tools adicionales.
+
 ## 📁 Estructura
 
 ```
@@ -28,10 +65,26 @@ src/
   routes/
     webhook.js        # Verificación y recepción de eventos de WhatsApp
   services/
-    openai.js         # Generación de respuestas con IA
-    whatsapp.js       # Envío de mensajes vía WhatsApp Cloud API
+    openai.js         # Cerebro: RAG + memoria + agente con tools
+    knowledge.js      # Base de conocimiento (RAG con embeddings)
+    memory.js         # Memoria de conversación por contacto
+    tools.js          # Acciones que el LLM puede ejecutar (function calling)
+    whatsapp.js       # Envío de mensajes (texto + botones interactivos)
     twenty.js         # Sincronización de contactos/notas en Twenty CRM
+knowledge/
+  ejemplo-empresa.md  # Reemplazá con tu propia información
 ```
+
+## 💬 Mensajes interactivos y WhatsApp Flows
+
+Para flujos **estructurados** (sin que la IA improvise) `whatsapp.js` incluye
+`sendButtons(to, texto, botones)` para enviar menús con botones. Cuando el
+contacto toca un botón, su título llega como texto normal al agente.
+
+Para formularios nativos más complejos (varias pantallas, validación) está
+**WhatsApp Flows**, que requiere configuración cifrada con un endpoint de
+intercambio de datos en el panel de Meta — un siguiente paso recomendado una
+vez que los botones se queden cortos.
 
 ## 🚀 Puesta en marcha
 
@@ -78,7 +131,11 @@ definiste en tu `.env`.
 | `PORT`                     |    No     | Puerto del servidor (por defecto `3000`).                |
 | `OPENAI_API_KEY`           |    Sí     | Clave de API de OpenAI.                                   |
 | `OPENAI_MODEL`             |    No     | Modelo a usar (por defecto `gpt-4o-mini`).               |
+| `OPENAI_EMBEDDING_MODEL`   |    No     | Modelo de embeddings para RAG (`text-embedding-3-small`).|
 | `AI_SYSTEM_PROMPT`         |    No     | Instrucción de sistema que define el comportamiento.     |
+| `MEMORY_MAX_TURNS`         |    No     | Turnos de conversación recordados por contacto (`10`).   |
+| `KNOWLEDGE_DIR`            |    No     | Carpeta con la base de conocimiento (`knowledge`).       |
+| `KNOWLEDGE_TOP_K`          |    No     | Fragmentos de conocimiento inyectados por respuesta (`4`).|
 | `WHATSAPP_TOKEN`           |    Sí     | Token de acceso de la app de Meta.                       |
 | `WHATSAPP_PHONE_NUMBER_ID` |    Sí     | ID del número de WhatsApp Business.                      |
 | `WHATSAPP_VERIFY_TOKEN`    |    Sí     | Token que inventas para verificar el webhook.            |

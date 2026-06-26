@@ -2,7 +2,7 @@ import { Router } from "express";
 import { config } from "../config.js";
 import { generateReply } from "../services/openai.js";
 import { sendTextMessage, markAsRead } from "../services/whatsapp.js";
-import { upsertContact, logNote } from "../services/twenty.js";
+import { getHistory, remember, forget } from "../services/memory.js";
 
 export const webhookRouter = Router();
 
@@ -55,13 +55,9 @@ function extractMessages(body) {
       const contactName = contacts[0]?.profile?.name;
 
       for (const msg of value.messages || []) {
-        if (msg.type === "text" && msg.text?.body) {
-          results.push({
-            from: msg.from,
-            text: msg.text.body,
-            id: msg.id,
-            name: contactName,
-          });
+        const text = readText(msg);
+        if (text) {
+          results.push({ from: msg.from, text, id: msg.id, name: contactName });
         }
       }
     }
@@ -71,24 +67,47 @@ function extractMessages(body) {
 }
 
 /**
+ * Normalize the different message shapes we care about into plain text:
+ * free text plus taps on interactive buttons / list items.
+ */
+function readText(msg) {
+  if (msg.type === "text") return msg.text?.body || "";
+  if (msg.type === "interactive") {
+    const i = msg.interactive || {};
+    return i.button_reply?.title || i.list_reply?.title || "";
+  }
+  return "";
+}
+
+/**
  * Full pipeline for a single incoming message:
- * read receipt -> AI reply -> send -> log to Twenty CRM.
+ * read receipt -> recall history -> AI (RAG + tools) -> send -> remember.
+ *
+ * Saving to the CRM is no longer done blindly here — the AI decides when via
+ * the tools in src/services/tools.js (save_contact, log_note, ...).
  */
 async function handleMessage({ from, text, id, name }) {
   console.log(`Message from ${from}${name ? ` (${name})` : ""}: ${text}`);
 
   await markAsRead(id);
 
-  const reply = await generateReply(text);
+  // Simple built-in command to clear a conversation.
+  if (text.trim().toLowerCase() === "/reset") {
+    forget(from);
+    await sendTextMessage(from, "🧹 Conversation reset. How can I help you?");
+    return;
+  }
+
+  const history = getHistory(from);
+  const reply = await generateReply({
+    userMessage: text,
+    history,
+    context: { phone: from, contactName: name },
+  });
+
   await sendTextMessage(from, reply);
 
-  // Best-effort CRM sync. Never blocks or breaks the reply.
-  const contact = await upsertContact({ phone: from, name });
-  if (contact) {
-    await logNote(
-      contact,
-      "WhatsApp conversation",
-      `Contact: ${text}\n\nAssistant: ${reply}`
-    );
-  }
+  // Persist this turn so the next message has context.
+  remember(from, "user", text);
+  remember(from, "assistant", reply);
 }
