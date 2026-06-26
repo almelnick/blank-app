@@ -99,7 +99,7 @@ async function handleMessage({ from, text, id, name }) {
   }
 
   const history = getHistory(from);
-  const reply = await generateReply({
+  const { reply } = await generateReply({
     userMessage: text,
     history,
     context: { phone: from, contactName: name },

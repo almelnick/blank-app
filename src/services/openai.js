@@ -21,7 +21,7 @@ const MAX_TOOL_ROUNDS = 5;
  * @param {string}   opts.userMessage - Latest message from the contact.
  * @param {Array<{role:"user"|"assistant",content:string}>} [opts.history]
  * @param {{ phone: string, contactName?: string }} [opts.context]
- * @returns {Promise<string>} The assistant's final reply text.
+ * @returns {Promise<{ reply: string, sources: string[] }>} Reply + knowledge sources used.
  */
 export async function generateReply({ userMessage, history = [], context = {} }) {
   const settings = getSettings();
@@ -30,7 +30,7 @@ export async function generateReply({ userMessage, history = [], context = {} })
   const profile = context.phone ? getProfile(context.phone) : null;
 
   // 1. RAG: ground the answer in our own knowledge base.
-  const knowledge = await retrieveContext(userMessage);
+  const { context: knowledge, sources } = await retrieveContext(userMessage);
   let systemContent = buildSystemPrompt({ profile });
   if (knowledge) {
     systemContent +=
@@ -58,7 +58,8 @@ export async function generateReply({ userMessage, history = [], context = {} })
 
     // No tool calls → this is the final answer.
     if (!message?.tool_calls?.length) {
-      return message?.content?.trim() || "Sorry, I couldn't generate a response right now.";
+      const reply = message?.content?.trim() || "Sorry, I couldn't generate a response right now.";
+      return { reply, sources };
     }
 
     // Execute every requested tool and feed the results back to the model.
@@ -78,5 +79,8 @@ export async function generateReply({ userMessage, history = [], context = {} })
     }
   }
 
-  return "Sorry, this is taking longer than expected. Could you rephrase your request?";
+  return {
+    reply: "Sorry, this is taking longer than expected. Could you rephrase your request?",
+    sources,
+  };
 }

@@ -5,7 +5,7 @@ import { config } from "../config.js";
 import { getSettings, updateSettings } from "../services/settings.js";
 import { getAgentConfig, updateAgentConfig } from "../services/agentConfig.js";
 import { resetIndex } from "../services/knowledge.js";
-import { scrapeUrl, slugFromUrl } from "../services/scraper.js";
+import { scrapeUrl, crawlSite, slugFromUrl } from "../services/scraper.js";
 import { listConversations, getHistory, getProfile, forget } from "../services/memory.js";
 import { generateReply } from "../services/openai.js";
 
@@ -66,23 +66,36 @@ function safeName(name) {
   return name;
 }
 
-// Scrape a URL and add its text to the knowledge base.
+// Scrape a URL (or crawl the whole site) and add the text to the knowledge base.
 apiRouter.post("/knowledge/import-url", async (req, res) => {
-  const { url } = req.body || {};
+  const { url, crawl = false, maxPages = 10 } = req.body || {};
   if (!url || !/^https?:\/\//i.test(url)) {
     return res.status(400).json({ error: "URL inválida (debe empezar con http:// o https://)" });
   }
   try {
-    const { title, text } = await scrapeUrl(url);
-    if (!text || text.length < 30) {
-      return res.status(422).json({ error: "No se pudo extraer texto útil de esa página." });
-    }
-    const name = slugFromUrl(url);
-    const content = `# ${title}\n\nFuente: ${url}\n\n${text}`;
     await fs.mkdir(KNOWLEDGE_DIR, { recursive: true });
-    await fs.writeFile(path.join(KNOWLEDGE_DIR, name), content, "utf8");
+
+    // Gather one or many pages.
+    const pages = crawl
+      ? await crawlSite(url, { maxPages: Math.min(Number(maxPages) || 10, 50) })
+      : [await scrapeUrl(url)];
+
+    const usable = pages.filter((p) => p.text && p.text.length >= 30);
+    if (usable.length === 0) {
+      return res.status(422).json({ error: "No se pudo extraer texto útil de esa(s) página(s)." });
+    }
+
+    // Save one knowledge file per page.
+    const saved = [];
+    for (const page of usable) {
+      const name = slugFromUrl(page.url);
+      const content = `# ${page.title}\n\nFuente: ${page.url}\n\n${page.text}`;
+      await fs.writeFile(path.join(KNOWLEDGE_DIR, name), content, "utf8");
+      saved.push(name);
+    }
+
     resetIndex();
-    res.json({ ok: true, name, chars: content.length });
+    res.json({ ok: true, pages: saved.length, files: saved });
   } catch (err) {
     res.status(500).json({ error: `No se pudo leer la URL: ${err.message}` });
   }
@@ -156,12 +169,12 @@ apiRouter.post("/chat", async (req, res) => {
   const { message, history = [] } = req.body || {};
   if (!message) return res.status(400).json({ error: "message is required" });
   try {
-    const reply = await generateReply({
+    const { reply, sources } = await generateReply({
       userMessage: message,
       history,
       context: { phone: "playground", contactName: "Playground" },
     });
-    res.json({ reply });
+    res.json({ reply, sources });
   } catch (err) {
     console.error("Playground chat failed:", err.message);
     res.status(500).json({ error: err.message });

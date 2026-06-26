@@ -19,7 +19,7 @@ import { getSettings } from "./settings.js";
 
 const client = new OpenAI({ apiKey: config.openai.apiKey });
 
-/** @type {{ text: string, embedding: number[] }[]} */
+/** @type {{ text: string, embedding: number[], source: string }[]} */
 let index = [];
 let indexPromise = null;
 
@@ -76,41 +76,52 @@ async function buildIndex() {
     return [];
   }
 
-  const chunks = [];
+  // Keep each chunk tagged with the file it came from (its "source").
+  const pieces = [];
   for (const file of files) {
     const content = await fs.readFile(path.join(dir, file), "utf8");
-    for (const c of chunk(content)) chunks.push(c);
+    for (const c of chunk(content)) pieces.push({ text: c, source: file });
   }
 
-  const embeddings = await embed(chunks);
-  const built = chunks.map((text, i) => ({ text, embedding: embeddings[i] }));
+  const embeddings = await embed(pieces.map((p) => p.text));
+  const built = pieces.map((p, i) => ({ ...p, embedding: embeddings[i] }));
   console.log(`RAG ready: ${built.length} chunks from ${files.length} file(s).`);
   return built;
 }
 
 /**
- * Retrieve the most relevant knowledge for a query, formatted for the prompt.
- * Returns "" when there is no knowledge base or on any error (best-effort).
+ * Retrieve the most relevant knowledge for a query.
+ * Applies a relevance threshold so irrelevant chunks aren't injected (which
+ * would confuse the agent), and reports which sources were used.
  *
  * @param {string} query
- * @returns {Promise<string>}
+ * @returns {Promise<{ context: string, sources: string[] }>}
  */
 export async function retrieveContext(query) {
+  const empty = { context: "", sources: [] };
   try {
     if (!indexPromise) indexPromise = buildIndex();
     index = await indexPromise;
-    if (index.length === 0) return "";
+    if (index.length === 0) return empty;
 
+    const { knowledgeTopK, knowledgeMinScore } = getSettings();
     const [queryEmbedding] = await embed([query]);
-    const ranked = index
-      .map((item) => ({ text: item.text, score: cosineSimilarity(queryEmbedding, item.embedding) }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, getSettings().knowledgeTopK);
 
-    return ranked.map((r) => r.text).join("\n\n---\n\n");
+    const ranked = index
+      .map((item) => ({ ...item, score: cosineSimilarity(queryEmbedding, item.embedding) }))
+      .filter((item) => item.score >= knowledgeMinScore)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, knowledgeTopK);
+
+    if (ranked.length === 0) return empty;
+
+    return {
+      context: ranked.map((r) => r.text).join("\n\n---\n\n"),
+      sources: [...new Set(ranked.map((r) => r.source))],
+    };
   } catch (err) {
     console.warn("RAG retrieveContext failed:", err.message);
-    return "";
+    return empty;
   }
 }
 

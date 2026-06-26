@@ -155,11 +155,17 @@ $("#chat-form").addEventListener("submit", async (e) => {
 
   const typing = addBubble("#chat", "assistant", "…");
   try {
-    const { reply } = await api("/chat", {
+    const { reply, sources } = await api("/chat", {
       method: "POST",
       body: JSON.stringify({ message, history: chatHistory }),
     });
     typing.textContent = reply;
+    if (sources && sources.length) {
+      const src = document.createElement("div");
+      src.className = "sources";
+      src.textContent = `📎 Fuentes: ${sources.join(", ")}`;
+      typing.appendChild(src);
+    }
     chatHistory.push({ role: "user", content: message });
     chatHistory.push({ role: "assistant", content: reply });
   } catch (err) {
@@ -212,19 +218,24 @@ async function openKbFile(name) {
 $("#kb-import").addEventListener("click", async () => {
   const url = $("#kb-url").value.trim();
   if (!url) return toast("Pegá una URL.", true);
+  const crawl = $("#kb-crawl").checked;
+  const maxPages = Number($("#kb-maxpages").value) || 10;
   const btn = $("#kb-import");
   btn.disabled = true;
-  btn.textContent = "Importando…";
+  btn.textContent = crawl ? "Recorriendo sitio…" : "Importando…";
   try {
-    const r = await api("/knowledge/import-url", { method: "POST", body: JSON.stringify({ url }) });
-    toast(`Importado: ${r.name} (${r.chars} caracteres).`);
+    const r = await api("/knowledge/import-url", {
+      method: "POST",
+      body: JSON.stringify({ url, crawl, maxPages }),
+    });
+    toast(`Importado: ${r.pages} página(s).`);
     $("#kb-url").value = "";
     loadKnowledge();
   } catch (e) {
     toast(e.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = "🌐 Importar URL";
+    btn.textContent = "🌐 Importar";
   }
 });
 

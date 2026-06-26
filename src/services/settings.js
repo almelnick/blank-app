@@ -13,7 +13,14 @@ import { config } from "../config.js";
 
 const FILE = path.resolve("settings.json");
 
-const EDITABLE = ["model", "systemPrompt", "temperature", "knowledgeTopK", "memoryMaxTurns"];
+const EDITABLE = [
+  "model",
+  "systemPrompt",
+  "temperature",
+  "knowledgeTopK",
+  "knowledgeMinScore",
+  "memoryMaxTurns",
+];
 
 function defaults() {
   return {
@@ -21,6 +28,7 @@ function defaults() {
     systemPrompt: config.openai.systemPrompt,
     temperature: 0.7,
     knowledgeTopK: config.knowledge.topK,
+    knowledgeMinScore: 0.2,
     memoryMaxTurns: config.memory.maxTurns,
   };
 }
@@ -59,6 +67,7 @@ export function updateSettings(patch = {}) {
   // Coerce numeric fields.
   next.temperature = Number(next.temperature);
   next.knowledgeTopK = Number(next.knowledgeTopK);
+  next.knowledgeMinScore = Number(next.knowledgeMinScore);
   next.memoryMaxTurns = Number(next.memoryMaxTurns);
 
   cache = next;

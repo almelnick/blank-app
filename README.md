@@ -45,8 +45,14 @@ El agente combina varias capacidades (todas en `src/services/`):
 ### Nutrir el conocimiento
 
 **Opción rápida — importar una URL:** en la pestaña **📚 Conocimiento** pegás un
-link (ej. tu página de precios) y el server lo **scrapea**, extrae el texto y lo
-agrega a la base. Se reindexa solo. (Solo scrapeá sitios propios o con permiso.)
+link y el server lo **scrapea**, extrae el texto y lo agrega a la base. Se
+reindexa solo. Marcá **"Recorrer todo el sitio"** para que **crawlee varias
+páginas** del dominio (hasta el máximo que elijas). (Solo scrapeá sitios propios
+o con permiso.)
+
+El RAG aplica un **umbral de relevancia** (no inyecta fragmentos poco
+relacionados) y **cita las fuentes** que usó — en el Playground las ves bajo cada
+respuesta (`📎 Fuentes: …`).
 
 **Opción manual — archivos:** poné tus `.md`/`.txt` en `knowledge/` (mirá
 `knowledge/ejemplo-empresa.md`):
@@ -208,6 +214,9 @@ definiste en tu `.env`.
 | `MEMORY_MAX_TURNS`         |    No     | Turnos de conversación recordados por contacto (`10`).   |
 | `KNOWLEDGE_DIR`            |    No     | Carpeta con la base de conocimiento (`knowledge`).       |
 | `KNOWLEDGE_TOP_K`          |    No     | Fragmentos de conocimiento inyectados por respuesta (`4`).|
+
+> El umbral de relevancia del RAG se ajusta desde el panel (Ajustes →
+> "Umbral de relevancia RAG", por defecto `0.2`).
 | `WHATSAPP_TOKEN`           |    Sí     | Token de acceso de la app de Meta.                       |
 | `WHATSAPP_PHONE_NUMBER_ID` |    Sí     | ID del número de WhatsApp Business.                      |
 | `WHATSAPP_VERIFY_TOKEN`    |    Sí     | Token que inventas para verificar el webhook.            |

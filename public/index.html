@@ -94,8 +94,12 @@
           <h1>Base de conocimiento (RAG)</h1>
           <p class="muted">Archivos .md/.txt que nutren al agente. Se reindexan al guardar.</p>
           <div class="import-row">
-            <input id="kb-url" placeholder="https://tu-sitio.com/precios — pegá un link y lo scrapeo" />
-            <button id="kb-import" class="btn">🌐 Importar URL</button>
+            <input id="kb-url" placeholder="https://tu-sitio.com — pegá un link y lo scrapeo" />
+            <button id="kb-import" class="btn">🌐 Importar</button>
+          </div>
+          <div class="import-opts">
+            <label class="check"><input type="checkbox" id="kb-crawl" /> Recorrer todo el sitio (varias páginas)</label>
+            <label class="check">Máx. páginas <input type="number" id="kb-maxpages" value="10" min="1" max="50" /></label>
           </div>
           <div class="split">
             <div class="list-pane">
@@ -146,6 +150,9 @@
             </label>
             <label>Fragmentos RAG por respuesta (top K)
               <input name="knowledgeTopK" type="number" min="1" max="20" />
+            </label>
+            <label>Umbral de relevancia RAG <span class="hint">(0–1; más alto = más estricto)</span>
+              <input name="knowledgeMinScore" type="number" step="0.05" min="0" max="1" />
             </label>
             <label>Turnos de memoria por contacto
               <input name="memoryMaxTurns" type="number" min="1" max="100" />
