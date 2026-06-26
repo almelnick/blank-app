@@ -21,6 +21,10 @@ function optional(name, fallback) {
 export const config = {
   port: Number(optional("PORT", "3000")),
 
+  // Optional token protecting the /admin panel and /api endpoints.
+  // If empty, the panel is open (fine for local dev only).
+  adminToken: optional("ADMIN_TOKEN", ""),
+
   openai: {
     apiKey: required("OPENAI_API_KEY"),
     model: optional("OPENAI_MODEL", "gpt-4o-mini"),

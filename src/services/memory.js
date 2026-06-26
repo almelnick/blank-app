@@ -1,4 +1,4 @@
-import { config } from "../config.js";
+import { getSettings } from "./settings.js";
 
 /**
  * Conversation memory, keyed by contact phone number.
@@ -34,7 +34,7 @@ export function remember(phone, role, content) {
   history.push({ role, content });
 
   // Keep the last N turns (each turn ≈ 2 messages).
-  const maxMessages = config.memory.maxTurns * 2;
+  const maxMessages = getSettings().memoryMaxTurns * 2;
   if (history.length > maxMessages) {
     history.splice(0, history.length - maxMessages);
   }
@@ -48,4 +48,16 @@ export function remember(phone, role, content) {
  */
 export function forget(phone) {
   store.delete(phone);
+}
+
+/**
+ * Summarize all active conversations (for the admin dashboard).
+ * @returns {Array<{phone:string, messages:number, lastMessage:string}>}
+ */
+export function listConversations() {
+  return [...store.entries()].map(([phone, history]) => ({
+    phone,
+    messages: history.length,
+    lastMessage: history[history.length - 1]?.content || "",
+  }));
 }

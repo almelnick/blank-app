@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsApp AI · Panel</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">🤖 WhatsApp&nbsp;AI</div>
+        <nav>
+          <button class="nav-item active" data-view="dashboard">📊 Dashboard</button>
+          <button class="nav-item" data-view="playground">💬 Playground</button>
+          <button class="nav-item" data-view="knowledge">📚 Conocimiento</button>
+          <button class="nav-item" data-view="conversations">🗂️ Conversaciones</button>
+          <button class="nav-item" data-view="settings">⚙️ Ajustes</button>
+        </nav>
+        <div class="token-box">
+          <label>Admin token</label>
+          <input id="token" type="password" placeholder="(si configuraste ADMIN_TOKEN)" />
+          <button id="save-token" class="btn small">Guardar</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <!-- Dashboard -->
+        <section id="dashboard" class="view active">
+          <h1>Dashboard</h1>
+          <div id="status-cards" class="cards"></div>
+          <h2>Resumen del cerebro</h2>
+          <div id="brain-summary" class="cards"></div>
+        </section>
+
+        <!-- Playground -->
+        <section id="playground" class="view">
+          <h1>Playground</h1>
+          <p class="muted">Probá la IA (RAG + tools) sin pasar por WhatsApp.</p>
+          <div id="chat" class="chat"></div>
+          <form id="chat-form" class="chat-form">
+            <input id="chat-input" placeholder="Escribí un mensaje…" autocomplete="off" />
+            <button class="btn">Enviar</button>
+            <button id="chat-reset" type="button" class="btn ghost">Limpiar</button>
+          </form>
+        </section>
+
+        <!-- Knowledge -->
+        <section id="knowledge" class="view">
+          <h1>Base de conocimiento (RAG)</h1>
+          <p class="muted">Archivos .md/.txt que nutren al agente. Se reindexan al guardar.</p>
+          <div class="split">
+            <div class="list-pane">
+              <ul id="kb-list" class="list"></ul>
+              <button id="kb-new" class="btn small">+ Nuevo archivo</button>
+            </div>
+            <div class="edit-pane">
+              <input id="kb-name" placeholder="nombre-del-archivo.md" />
+              <textarea id="kb-content" placeholder="Contenido…"></textarea>
+              <div class="row">
+                <button id="kb-save" class="btn">Guardar</button>
+                <button id="kb-delete" class="btn danger">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Conversations -->
+        <section id="conversations" class="view">
+          <h1>Conversaciones</h1>
+          <p class="muted">Historial en memoria por contacto.</p>
+          <div class="split">
+            <div class="list-pane">
+              <ul id="conv-list" class="list"></ul>
+              <button id="conv-refresh" class="btn small">↻ Actualizar</button>
+            </div>
+            <div class="edit-pane">
+              <div id="conv-history" class="chat"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="settings" class="view">
+          <h1>Ajustes</h1>
+          <p class="muted">
+            Los secretos (API keys) se configuran en <code>.env</code>. Acá ajustás el
+            comportamiento del agente en vivo.
+          </p>
+          <form id="settings-form" class="form">
+            <label>Modelo
+              <input name="model" placeholder="gpt-4o-mini" />
+            </label>
+            <label>System prompt (personalidad / instrucciones)
+              <textarea name="systemPrompt" rows="5"></textarea>
+            </label>
+            <label>Temperatura
+              <input name="temperature" type="number" step="0.1" min="0" max="2" />
+            </label>
+            <label>Fragmentos RAG por respuesta (top K)
+              <input name="knowledgeTopK" type="number" min="1" max="20" />
+            </label>
+            <label>Turnos de memoria por contacto
+              <input name="memoryMaxTurns" type="number" min="1" max="100" />
+            </label>
+            <button class="btn">Guardar ajustes</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -73,6 +73,12 @@ src/
     twenty.js         # Sincronización de contactos/notas en Twenty CRM
 knowledge/
   ejemplo-empresa.md  # Reemplazá con tu propia información
+public/               # Panel de administración (SPA estática)
+  index.html
+  styles.css
+  app.js
+scripts/
+  generate-flow-keys.mjs
 ```
 
 ## 💬 Mensajes interactivos y WhatsApp Flows
@@ -140,7 +146,26 @@ npm start      # producción
 npm run dev    # desarrollo (recarga automática con --watch)
 ```
 
-El servidor queda escuchando en `http://localhost:3000`.
+El servidor queda escuchando en `http://localhost:3000` y el **panel de
+administración** en `http://localhost:3000/admin`.
+
+## 🖥️ Panel de administración
+
+Una SPA (sin build, servida por el propio Express) en `/admin` para operar el
+bot sin tocar archivos:
+
+- **Dashboard** — estado de cada integración (OpenAI, WhatsApp, Twenty, Flows) y
+  resumen del cerebro (modelo, conversaciones, RAG, memoria).
+- **Playground** — chateá con la IA (RAG + tools) sin pasar por WhatsApp.
+- **Conocimiento** — creá, editá y borrá los archivos de la base RAG; se
+  reindexan al guardar.
+- **Conversaciones** — historial en memoria por contacto.
+- **Ajustes** — cambiá modelo, system prompt, temperatura, top K y memoria en
+  vivo (se guardan en `settings.json`).
+
+> Protegé el panel con `ADMIN_TOKEN` en `.env`. Si está vacío, queda abierto
+> (solo para desarrollo local). El token se pega una vez en la barra lateral.
+> Los secretos (API keys) se configuran en `.env`, **nunca** desde la UI.
 
 ### 4. Exponer el webhook
 
@@ -160,6 +185,7 @@ definiste en tu `.env`.
 | Variable                   | Requerida | Descripción                                              |
 | -------------------------- | :-------: | -------------------------------------------------------- |
 | `PORT`                     |    No     | Puerto del servidor (por defecto `3000`).                |
+| `ADMIN_TOKEN`              |    No     | Protege el panel `/admin` y `/api`. Vacío = abierto (dev).|
 | `OPENAI_API_KEY`           |    Sí     | Clave de API de OpenAI.                                   |
 | `OPENAI_MODEL`             |    No     | Modelo a usar (por defecto `gpt-4o-mini`).               |
 | `OPENAI_EMBEDDING_MODEL`   |    No     | Modelo de embeddings para RAG (`text-embedding-3-small`).|

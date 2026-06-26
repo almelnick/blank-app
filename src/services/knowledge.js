@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { getSettings } from "./settings.js";
 
 /**
  * Minimal Retrieval-Augmented Generation (RAG) over local files.
@@ -104,11 +105,20 @@ export async function retrieveContext(query) {
     const ranked = index
       .map((item) => ({ text: item.text, score: cosineSimilarity(queryEmbedding, item.embedding) }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, config.knowledge.topK);
+      .slice(0, getSettings().knowledgeTopK);
 
     return ranked.map((r) => r.text).join("\n\n---\n\n");
   } catch (err) {
     console.warn("RAG retrieveContext failed:", err.message);
     return "";
   }
+}
+
+/**
+ * Drop the cached index so it rebuilds on the next query. Call after the
+ * knowledge files change (e.g. from the admin panel).
+ */
+export function resetIndex() {
+  index = [];
+  indexPromise = null;
 }

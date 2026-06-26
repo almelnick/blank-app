@@ -175,3 +175,6 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+
+# Runtime settings written by the admin panel
+settings.json

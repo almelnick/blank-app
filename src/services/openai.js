@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { getSettings } from "./settings.js";
 import { retrieveContext } from "./knowledge.js";
 import { toolDefinitions, executeTool } from "./tools.js";
 
@@ -21,11 +22,13 @@ const MAX_TOOL_ROUNDS = 5;
  * @returns {Promise<string>} The assistant's final reply text.
  */
 export async function generateReply({ userMessage, history = [], context = {} }) {
+  const settings = getSettings();
+
   // 1. RAG: ground the answer in our own knowledge base.
   const knowledge = await retrieveContext(userMessage);
   const systemContent = knowledge
-    ? `${config.openai.systemPrompt}\n\nUse the following context to answer when relevant:\n${knowledge}`
-    : config.openai.systemPrompt;
+    ? `${settings.systemPrompt}\n\nUse the following context to answer when relevant:\n${knowledge}`
+    : settings.systemPrompt;
 
   // 2. Memory: system + past turns + the new message.
   const messages = [
@@ -37,10 +40,10 @@ export async function generateReply({ userMessage, history = [], context = {} })
   // 3. Agent loop: let the model think, optionally call tools, then answer.
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const completion = await client.chat.completions.create({
-      model: config.openai.model,
+      model: settings.model,
       messages,
       tools: toolDefinitions,
-      temperature: 0.7,
+      temperature: settings.temperature,
     });
 
     const message = completion.choices?.[0]?.message;
