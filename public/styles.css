@@ -129,6 +129,11 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-2); }
 .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); margin-left: 6px; }
 .tag.handoff { background: rgba(229, 72, 77, .15); color: var(--danger); }
 
+/* URL import row */
+.import-row { display: flex; gap: 10px; margin: 14px 0; }
+.import-row input { flex: 1; }
+.import-row .btn { white-space: nowrap; }
+
 /* Split layout */
 .split { display: grid; grid-template-columns: 260px 1fr; gap: 16px; margin-top: 16px; }
 .list-pane { display: flex; flex-direction: column; gap: 10px; }

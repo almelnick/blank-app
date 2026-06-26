@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import { getSettings, updateSettings } from "../services/settings.js";
 import { getAgentConfig, updateAgentConfig } from "../services/agentConfig.js";
 import { resetIndex } from "../services/knowledge.js";
+import { scrapeUrl, slugFromUrl } from "../services/scraper.js";
 import { listConversations, getHistory, getProfile, forget } from "../services/memory.js";
 import { generateReply } from "../services/openai.js";
 
@@ -64,6 +65,28 @@ function safeName(name) {
   if (!/^[\w.-]+\.(md|txt)$/i.test(name) || name.includes("..")) return null;
   return name;
 }
+
+// Scrape a URL and add its text to the knowledge base.
+apiRouter.post("/knowledge/import-url", async (req, res) => {
+  const { url } = req.body || {};
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return res.status(400).json({ error: "URL inválida (debe empezar con http:// o https://)" });
+  }
+  try {
+    const { title, text } = await scrapeUrl(url);
+    if (!text || text.length < 30) {
+      return res.status(422).json({ error: "No se pudo extraer texto útil de esa página." });
+    }
+    const name = slugFromUrl(url);
+    const content = `# ${title}\n\nFuente: ${url}\n\n${text}`;
+    await fs.mkdir(KNOWLEDGE_DIR, { recursive: true });
+    await fs.writeFile(path.join(KNOWLEDGE_DIR, name), content, "utf8");
+    resetIndex();
+    res.json({ ok: true, name, chars: content.length });
+  } catch (err) {
+    res.status(500).json({ error: `No se pudo leer la URL: ${err.message}` });
+  }
+});
 
 apiRouter.get("/knowledge", async (_req, res) => {
   try {

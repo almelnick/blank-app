@@ -93,6 +93,10 @@
         <section id="knowledge" class="view">
           <h1>Base de conocimiento (RAG)</h1>
           <p class="muted">Archivos .md/.txt que nutren al agente. Se reindexan al guardar.</p>
+          <div class="import-row">
+            <input id="kb-url" placeholder="https://tu-sitio.com/precios — pegá un link y lo scrapeo" />
+            <button id="kb-import" class="btn">🌐 Importar URL</button>
+          </div>
           <div class="split">
             <div class="list-pane">
               <ul id="kb-list" class="list"></ul>

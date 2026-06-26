@@ -44,7 +44,12 @@ El agente combina varias capacidades (todas en `src/services/`):
 
 ### Nutrir el conocimiento
 
-Poné tus archivos en `knowledge/` (mirá `knowledge/ejemplo-empresa.md`):
+**Opción rápida — importar una URL:** en la pestaña **📚 Conocimiento** pegás un
+link (ej. tu página de precios) y el server lo **scrapea**, extrae el texto y lo
+agrega a la base. Se reindexa solo. (Solo scrapeá sitios propios o con permiso.)
+
+**Opción manual — archivos:** poné tus `.md`/`.txt` en `knowledge/` (mirá
+`knowledge/ejemplo-empresa.md`):
 
 ```
 knowledge/

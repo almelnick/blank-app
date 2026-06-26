@@ -209,6 +209,25 @@ async function openKbFile(name) {
   $("#kb-content").value = content;
 }
 
+$("#kb-import").addEventListener("click", async () => {
+  const url = $("#kb-url").value.trim();
+  if (!url) return toast("Pegá una URL.", true);
+  const btn = $("#kb-import");
+  btn.disabled = true;
+  btn.textContent = "Importando…";
+  try {
+    const r = await api("/knowledge/import-url", { method: "POST", body: JSON.stringify({ url }) });
+    toast(`Importado: ${r.name} (${r.chars} caracteres).`);
+    $("#kb-url").value = "";
+    loadKnowledge();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🌐 Importar URL";
+  }
+});
+
 $("#kb-new").addEventListener("click", () => {
   $("#kb-name").value = "";
   $("#kb-content").value = "";
