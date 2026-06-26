@@ -82,9 +82,40 @@ Para flujos **estructurados** (sin que la IA improvise) `whatsapp.js` incluye
 contacto toca un botón, su título llega como texto normal al agente.
 
 Para formularios nativos más complejos (varias pantallas, validación) está
-**WhatsApp Flows**, que requiere configuración cifrada con un endpoint de
-intercambio de datos en el panel de Meta — un siguiente paso recomendado una
-vez que los botones se queden cortos.
+**WhatsApp Flows**, ya implementado abajo.
+
+### WhatsApp Flows (endpoint cifrado)
+
+El endpoint `POST /flows` recibe los datos de un Flow nativo de Meta. Todo el
+tráfico va cifrado (RSA + AES-GCM) y el servidor ya hace todo: verifica la
+firma, descifra, responde el *health check*, procesa las pantallas y cifra la
+respuesta. Archivos:
+
+```
+src/routes/flows.js          # Endpoint (firma → descifra → maneja → cifra)
+src/services/flowsCrypto.js  # RSA-OAEP + AES-GCM (IV invertido en la respuesta)
+src/services/flowHandler.js  # TU lógica de pantallas (ejemplo: captura de lead)
+scripts/generate-flow-keys.mjs  # Genera el par de llaves RSA
+```
+
+**Puesta en marcha:**
+
+1. Generá las llaves:
+   ```bash
+   node scripts/generate-flow-keys.mjs
+   ```
+2. Pegá la **privada** en `.env` como `WHATSAPP_FLOW_PRIVATE_KEY` (una línea
+   con `\n`). El script ya te imprime la línea lista.
+3. Subí la **pública** a tu número (el script imprime el comando `curl` exacto
+   con el endpoint `/whatsapp_business_encryption`).
+4. En el Flow Builder de Meta, configurá el endpoint:
+   `https://TU-DOMINIO/flows`.
+5. Diseñá las pantallas en el Flow Builder y ajustá `flowHandler.js` para que
+   los nombres de pantalla (`screen`) y los datos (`data`) coincidan. El ejemplo
+   incluido captura un lead (`LEAD_FORM`) y lo guarda en Twenty CRM.
+
+> El endpoint responde `432` si la firma no valida y `421` si no puede
+> descifrar (el cliente reintenta), según lo que espera Meta.
 
 ## 🚀 Puesta en marcha
 

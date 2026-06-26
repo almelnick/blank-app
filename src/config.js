@@ -49,6 +49,19 @@ export const config = {
     phoneNumberId: required("WHATSAPP_PHONE_NUMBER_ID"),
     verifyToken: required("WHATSAPP_VERIFY_TOKEN"),
     apiVersion: optional("WHATSAPP_API_VERSION", "v20.0"),
+    // App secret from the Meta dashboard, used to verify x-hub-signature-256.
+    appSecret: optional("WHATSAPP_APP_SECRET", ""),
+  },
+
+  // WhatsApp Flows endpoint (encrypted data exchange).
+  // The private key pairs with the public key uploaded to your phone number.
+  // Use `\n` for line breaks when storing the PEM in a single env var.
+  flows: {
+    privateKey: optional("WHATSAPP_FLOW_PRIVATE_KEY", "").replace(/\\n/g, "\n"),
+    passphrase: optional("WHATSAPP_FLOW_PRIVATE_KEY_PASSPHRASE", ""),
+    get enabled() {
+      return Boolean(this.privateKey);
+    },
   },
 
   twenty: {
