@@ -1,0 +1,31 @@
+{
+  "name": "whatsapp-ai-twenty-crm",
+  "version": "1.0.0",
+  "description": "WhatsApp bot powered by AI that logs conversations and contacts into Twenty CRM",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "whatsapp",
+    "ai",
+    "openai",
+    "crm",
+    "twenty",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "openai": "^4.52.0"
+  }
+}
