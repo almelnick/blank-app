@@ -3,8 +3,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
 import { getSettings, updateSettings } from "../services/settings.js";
+import { getAgentConfig, updateAgentConfig } from "../services/agentConfig.js";
 import { resetIndex } from "../services/knowledge.js";
-import { listConversations, getHistory, forget } from "../services/memory.js";
+import { listConversations, getHistory, getProfile, forget } from "../services/memory.js";
 import { generateReply } from "../services/openai.js";
 
 export const apiRouter = Router();
@@ -42,6 +43,15 @@ apiRouter.get("/settings", (_req, res) => res.json(getSettings()));
 
 apiRouter.post("/settings", (req, res) => {
   res.json(updateSettings(req.body || {}));
+});
+
+// ------------------------------------------------------------------
+// Agent design (identity, goal, tone, guardrails, playbook, fallback)
+// ------------------------------------------------------------------
+apiRouter.get("/agent", (_req, res) => res.json(getAgentConfig()));
+
+apiRouter.post("/agent", (req, res) => {
+  res.json(updateAgentConfig(req.body || {}));
 });
 
 // ------------------------------------------------------------------
@@ -108,7 +118,7 @@ apiRouter.delete("/knowledge/:name", async (req, res) => {
 apiRouter.get("/conversations", (_req, res) => res.json(listConversations()));
 
 apiRouter.get("/conversations/:phone", (req, res) => {
-  res.json(getHistory(req.params.phone));
+  res.json({ profile: getProfile(req.params.phone), history: getHistory(req.params.phone) });
 });
 
 apiRouter.delete("/conversations/:phone", (req, res) => {

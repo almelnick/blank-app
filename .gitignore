@@ -178,3 +178,7 @@ yarn-error.log*
 
 # Runtime settings written by the admin panel
 settings.json
+
+# Persisted runtime data and agent config (written by the panel)
+data/
+agent.json

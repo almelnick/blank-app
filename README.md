@@ -21,18 +21,26 @@ WhatsApp  ──▶  /webhook (Express)  ──▶  OpenAI  ──▶  respuesta
 
 ## 🧠 El cerebro
 
-El agente combina tres capacidades (todas en `src/services/`):
+El agente combina varias capacidades (todas en `src/services/`):
 
-1. **Memoria** (`memory.js`) — recuerda los últimos turnos de cada contacto, así
-   la conversación tiene continuidad. Es en memoria del proceso (se reinicia al
-   reiniciar el server); para producción, cambiá el `Map` por Redis o una base.
+1. **Diseño / objetivo** (`agentConfig.js`) — la personalidad y el comportamiento
+   no son un prompt suelto: se describen en partes (negocio, rol, objetivo, tono,
+   reglas, guión por etapas y derivación) y `buildSystemPrompt()` las ensambla en
+   un system prompt sólido. Todo se edita desde la pestaña **🧠 Agente** del panel.
+2. **Flujos estructurados** — el guión (`playbook`) define etapas (Saludo →
+   Calificación → Propuesta → Captura → Cierre). El agente avanza de forma natural
+   y registra la etapa con la tool `set_stage`, visible en cada conversación.
+3. **Memoria persistente** (`memory.js`) — historial y **perfil por contacto**
+   (nombre, email, etapa, derivación) guardados en `data/store.json`, así
+   **sobreviven a los reinicios**. Para escala, cambiá el archivo por SQLite/Postgres.
    Escribí `/reset` en el chat para borrar el historial de un contacto.
-2. **Conocimiento / RAG** (`knowledge.js`) — todo archivo `.md`/`.txt` en la
+4. **Conocimiento / RAG** (`knowledge.js`) — todo archivo `.md`/`.txt` en la
    carpeta `knowledge/` se trocea, se convierte en *embeddings* y se usa para
    responder con TU información. Sin base de datos externa: funciona out-of-the-box.
-3. **Acciones / tools** (`tools.js`) — el modelo decide **cuándo** guardar datos.
-   Tools incluidas: `save_contact`, `log_note`, `schedule_appointment`. El LLM
-   las llama solo (function calling) y tu código ejecuta la acción real en Twenty.
+5. **Acciones / tools** (`tools.js`) — el modelo decide **cuándo** actuar. Tools:
+   `save_contact`, `log_note`, `schedule_appointment`, `set_stage` y
+   `request_human_handoff` (calidad y control: deriva a un humano cuando no puede
+   ayudar o el cliente lo pide, y marca la conversación). El LLM las llama solo.
 
 ### Nutrir el conocimiento
 
@@ -65,9 +73,10 @@ src/
   routes/
     webhook.js        # Verificación y recepción de eventos de WhatsApp
   services/
-    openai.js         # Cerebro: RAG + memoria + agente con tools
+    openai.js         # Cerebro: prompt estructurado + RAG + memoria + tools
+    agentConfig.js    # Diseño del agente (identidad, objetivo, guión, guardrails)
     knowledge.js      # Base de conocimiento (RAG con embeddings)
-    memory.js         # Memoria de conversación por contacto
+    memory.js         # Memoria PERSISTENTE + perfil por contacto (data/store.json)
     tools.js          # Acciones que el LLM puede ejecutar (function calling)
     whatsapp.js       # Envío de mensajes (texto + botones interactivos)
     twenty.js         # Sincronización de contactos/notas en Twenty CRM
@@ -156,6 +165,7 @@ bot sin tocar archivos:
 
 - **Dashboard** — estado de cada integración (OpenAI, WhatsApp, Twenty, Flows) y
   resumen del cerebro (modelo, conversaciones, RAG, memoria).
+- **Agente** — diseñá identidad, objetivo, tono, reglas y el guión por etapas.
 - **Playground** — chateá con la IA (RAG + tools) sin pasar por WhatsApp.
 - **Conocimiento** — creá, editá y borrá los archivos de la base RAG; se
   reindexan al guardar.

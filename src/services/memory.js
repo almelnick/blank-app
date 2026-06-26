@@ -1,63 +1,103 @@
+import fs from "node:fs";
+import path from "node:path";
 import { getSettings } from "./settings.js";
 
 /**
- * Conversation memory, keyed by contact phone number.
+ * Persistent conversation store + per-contact profiles.
  *
- * This implementation is IN-PROCESS: history lives in a Map and is lost when
- * the server restarts. It's perfect for getting started, but for production
- * swap the Map for Redis or a database (the function signatures below are the
- * only surface you'd need to keep).
+ * Everything is kept in a single JSON file under data/ so it SURVIVES restarts
+ * (the old version lived only in RAM). It's zero-dependency and perfect for the
+ * volume of a WhatsApp bot. For high scale, swap the file for SQLite/Postgres —
+ * only the load()/persist() helpers would change.
  *
- * Only clean user/assistant text turns are stored here — never the raw
- * tool-call messages from the agent loop, which reference transient IDs.
+ *   conversations[phone] = [{ role, content }, ...]   // chat history
+ *   profiles[phone]      = { name, email, stage, handoff, notes, lastSeen, ... }
  */
 
-const store = new Map();
+const DIR = path.resolve("data");
+const FILE = path.join(DIR, "store.json");
 
-/**
- * Get the stored conversation history for a contact.
- * @param {string} phone
- * @returns {Array<{role: "user"|"assistant", content: string}>}
- */
-export function getHistory(phone) {
-  return store.get(phone) || [];
+let db = { conversations: {}, profiles: {} };
+let loaded = false;
+
+const nowISO = () => new Date().toISOString();
+
+function load() {
+  if (loaded) return;
+  try {
+    const raw = JSON.parse(fs.readFileSync(FILE, "utf8"));
+    db = { conversations: raw.conversations || {}, profiles: raw.profiles || {} };
+  } catch {
+    // No file yet — start fresh.
+  }
+  loaded = true;
 }
 
-/**
- * Append a turn to a contact's history, trimming to the configured window.
- * @param {string} phone
- * @param {"user"|"assistant"} role
- * @param {string} content
- */
+function persist() {
+  try {
+    fs.mkdirSync(DIR, { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify(db, null, 2));
+  } catch (err) {
+    console.warn("Memory persist failed:", err.message);
+  }
+}
+
+// ---- conversation history ----------------------------------------
+export function getHistory(phone) {
+  load();
+  return db.conversations[phone] || [];
+}
+
 export function remember(phone, role, content) {
-  const history = store.get(phone) || [];
+  load();
+  const history = db.conversations[phone] || [];
   history.push({ role, content });
 
-  // Keep the last N turns (each turn ≈ 2 messages).
   const maxMessages = getSettings().memoryMaxTurns * 2;
-  if (history.length > maxMessages) {
-    history.splice(0, history.length - maxMessages);
-  }
+  if (history.length > maxMessages) history.splice(0, history.length - maxMessages);
 
-  store.set(phone, history);
+  db.conversations[phone] = history;
+  touchProfile(phone);
+  persist();
 }
 
-/**
- * Forget a contact's history (e.g. on an explicit "reset" command).
- * @param {string} phone
- */
 export function forget(phone) {
-  store.delete(phone);
+  load();
+  delete db.conversations[phone];
+  persist();
 }
 
-/**
- * Summarize all active conversations (for the admin dashboard).
- * @returns {Array<{phone:string, messages:number, lastMessage:string}>}
- */
+// ---- contact profiles --------------------------------------------
+export function getProfile(phone) {
+  load();
+  return db.profiles[phone] || { phone };
+}
+
+export function updateProfile(phone, patch = {}) {
+  load();
+  const prev = db.profiles[phone] || { phone, createdAt: nowISO() };
+  db.profiles[phone] = { ...prev, ...patch, phone, updatedAt: nowISO() };
+  persist();
+  return db.profiles[phone];
+}
+
+function touchProfile(phone) {
+  const prev = db.profiles[phone] || { phone, createdAt: nowISO(), stage: "Saludo" };
+  db.profiles[phone] = { ...prev, phone, lastSeen: nowISO() };
+}
+
+// ---- dashboard ----------------------------------------------------
 export function listConversations() {
-  return [...store.entries()].map(([phone, history]) => ({
-    phone,
-    messages: history.length,
-    lastMessage: history[history.length - 1]?.content || "",
-  }));
+  load();
+  return Object.entries(db.conversations).map(([phone, history]) => {
+    const p = db.profiles[phone] || {};
+    return {
+      phone,
+      name: p.name || null,
+      stage: p.stage || null,
+      handoff: Boolean(p.handoff),
+      messages: history.length,
+      lastMessage: history[history.length - 1]?.content || "",
+    };
+  });
 }

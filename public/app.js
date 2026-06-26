@@ -54,6 +54,7 @@ $$(".nav-item").forEach((btn) => {
 
 function onShow(view) {
   if (view === "dashboard") loadDashboard();
+  if (view === "agent") loadAgent();
   if (view === "knowledge") loadKnowledge();
   if (view === "conversations") loadConversations();
   if (view === "settings") loadSettings();
@@ -95,6 +96,51 @@ async function loadDashboard() {
 function card(label, value) {
   return `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`;
 }
+
+// ---- agent design -------------------------------------------------
+async function loadAgent() {
+  const a = await api("/agent");
+  const form = $("#agent-form");
+  const set = (name, value) => { if (form.elements[name]) form.elements[name].value = value; };
+  set("businessName", a.businessName);
+  set("agentName", a.agentName);
+  set("role", a.role);
+  set("goal", a.goal);
+  set("tone", a.tone);
+  set("language", a.language);
+  set("guardrails", (a.guardrails || []).join("\n"));
+  set("playbook", (a.playbook || []).map((s) => `${s.stage} | ${s.goal}`).join("\n"));
+  set("fallback", a.fallback);
+}
+
+$("#agent-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  const payload = {
+    businessName: f.businessName.value,
+    agentName: f.agentName.value,
+    role: f.role.value,
+    goal: f.goal.value,
+    tone: f.tone.value,
+    language: f.language.value,
+    guardrails: f.guardrails.value.split("\n").map((s) => s.trim()).filter(Boolean),
+    playbook: f.playbook.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [stage, ...rest] = line.split("|");
+        return { stage: stage.trim(), goal: rest.join("|").trim() };
+      }),
+    fallback: f.fallback.value,
+  };
+  try {
+    await api("/agent", { method: "POST", body: JSON.stringify(payload) });
+    toast("Agente guardado. Probalo en el Playground.");
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
 
 // ---- playground ---------------------------------------------------
 let chatHistory = [];
@@ -206,12 +252,17 @@ async function loadConversations() {
     const convs = await api("/conversations");
     list.innerHTML = convs.length
       ? convs
-          .map(
-            (c) =>
-              `<li data-phone="${escapeHtml(c.phone)}">${escapeHtml(c.phone)}<div class="sub">${c.messages} msgs · ${escapeHtml(
-                (c.lastMessage || "").slice(0, 40)
-              )}</div></li>`
-          )
+          .map((c) => {
+            const title = escapeHtml(c.name || c.phone);
+            const stage = c.handoff
+              ? `<span class="tag handoff">derivar</span>`
+              : c.stage
+              ? `<span class="tag">${escapeHtml(c.stage)}</span>`
+              : "";
+            return `<li data-phone="${escapeHtml(c.phone)}">${title}${stage}<div class="sub">${c.messages} msgs · ${escapeHtml(
+              (c.lastMessage || "").slice(0, 40)
+            )}</div></li>`;
+          })
           .join("")
       : `<li class="muted">Sin conversaciones todavía</li>`;
     $$("#conv-list li[data-phone]").forEach((li) =>
@@ -223,7 +274,16 @@ async function loadConversations() {
 }
 
 async function openConversation(phone) {
-  const history = await api(`/conversations/${encodeURIComponent(phone)}`);
+  const { profile, history } = await api(`/conversations/${encodeURIComponent(phone)}`);
+  const p = profile || {};
+  const pills = [
+    `<span class="pill"><strong>${escapeHtml(p.name || phone)}</strong></span>`,
+    p.email ? `<span class="pill">${escapeHtml(p.email)}</span>` : "",
+    p.stage ? `<span class="pill">Etapa: ${escapeHtml(p.stage)}</span>` : "",
+    p.handoff ? `<span class="pill warn">⚠ Requiere humano</span>` : "",
+  ];
+  $("#conv-profile").innerHTML = pills.join("");
+
   const box = $("#conv-history");
   box.innerHTML = "";
   history.forEach((m) => addBubble("#conv-history", m.role, m.content));

@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
 import { getSettings } from "./settings.js";
+import { buildSystemPrompt } from "./agentConfig.js";
+import { getProfile } from "./memory.js";
 import { retrieveContext } from "./knowledge.js";
 import { toolDefinitions, executeTool } from "./tools.js";
 
@@ -24,11 +26,16 @@ const MAX_TOOL_ROUNDS = 5;
 export async function generateReply({ userMessage, history = [], context = {} }) {
   const settings = getSettings();
 
+  // Per-contact profile (name + current stage) keeps the agent in context.
+  const profile = context.phone ? getProfile(context.phone) : null;
+
   // 1. RAG: ground the answer in our own knowledge base.
   const knowledge = await retrieveContext(userMessage);
-  const systemContent = knowledge
-    ? `${settings.systemPrompt}\n\nUse the following context to answer when relevant:\n${knowledge}`
-    : settings.systemPrompt;
+  let systemContent = buildSystemPrompt({ profile });
+  if (knowledge) {
+    systemContent +=
+      `\n\nCONOCIMIENTO RELEVANTE (respondé usando esto; si la respuesta no está acá, no la inventes):\n${knowledge}`;
+  }
 
   // 2. Memory: system + past turns + the new message.
   const messages = [

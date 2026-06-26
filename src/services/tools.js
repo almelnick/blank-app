@@ -1,4 +1,5 @@
 import { upsertContact, logNote } from "./twenty.js";
+import { updateProfile } from "./memory.js";
 
 /**
  * Tools (a.k.a. function calling) the AI can invoke on its own.
@@ -64,6 +65,36 @@ export const toolDefinitions = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "set_stage",
+      description:
+        "Update the current conversation stage as you move through the playbook (e.g. Calificación, Propuesta, Captura, Cierre).",
+      parameters: {
+        type: "object",
+        properties: {
+          stage: { type: "string", description: "Name of the new stage." },
+        },
+        required: ["stage"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "request_human_handoff",
+      description:
+        "Escalate the conversation to a human when you cannot help, the topic is sensitive, or the customer asks to talk to a person.",
+      parameters: {
+        type: "object",
+        properties: {
+          reason: { type: "string", description: "Why a human is needed." },
+        },
+        required: ["reason"],
+      },
+    },
+  },
 ];
 
 /**
@@ -77,14 +108,15 @@ export const toolDefinitions = [
 export async function executeTool(name, args, ctx) {
   switch (name) {
     case "save_contact": {
+      // Always remember it locally (works even if the CRM is off)...
+      updateProfile(ctx.phone, { name: args.name || ctx.contactName, email: args.email });
+      // ...and best-effort sync to Twenty.
       const person = await upsertContact({
         phone: ctx.phone,
         name: args.name || ctx.contactName,
         email: args.email,
       });
-      return person
-        ? { ok: true, message: "Contact saved." }
-        : { ok: false, message: "CRM is disabled or unreachable." };
+      return { ok: true, message: person ? "Contact saved in CRM." : "Contact saved locally." };
     }
 
     case "log_note": {
@@ -103,7 +135,20 @@ export async function executeTool(name, args, ctx) {
         "Appointment requested",
         `When: ${when}\nReason: ${args.reason || "(not specified)"}`
       );
+      updateProfile(ctx.phone, { stage: "Cierre" });
       return { ok: true, message: `Appointment request recorded for ${when}.` };
+    }
+
+    case "set_stage": {
+      updateProfile(ctx.phone, { stage: args.stage });
+      return { ok: true, message: `Stage set to ${args.stage}.` };
+    }
+
+    case "request_human_handoff": {
+      updateProfile(ctx.phone, { handoff: true, handoffReason: args.reason, stage: "Derivado" });
+      const person = await upsertContact({ phone: ctx.phone, name: ctx.contactName });
+      await logNote(person, "Human handoff requested", args.reason || "(no reason given)");
+      return { ok: true, message: "Flagged for human follow-up." };
     }
 
     default:
